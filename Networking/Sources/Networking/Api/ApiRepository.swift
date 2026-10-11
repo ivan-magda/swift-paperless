@@ -805,8 +805,11 @@ extension ApiRepository: Repository {
     let checksum = original ? document.versions.first { $0.id == version }?.checksum : nil
     return try await inFlightDownloads.run(key: inFlightKey, progress: progress) {
       @MainActor [contentStore, fileIndex] report in
-      let request = try self.request(
-        .download(documentId: document.id, original: original, version: queryVersion))
+      let request =
+        original
+        ? try self.request(
+          .download(documentId: document.id, original: true, version: queryVersion))
+        : try self.downloadRequest(documentID: document.id, version: queryVersion)
       // Coalesced callers share this one task, so its bytes are recorded once.
       let (tempURL, response): (URL, URLResponse)
       do {
@@ -1148,6 +1151,10 @@ extension ApiRepository: Repository {
     } else {
       Logger.networking.info("NOT adding token to request (token is nil)")
     }
+  }
+
+  public func downloadRequest(documentID: UInt, version: UInt?) throws -> URLRequest {
+    try request(.download(documentId: documentID, original: false, version: version))
   }
 
   public nonisolated
